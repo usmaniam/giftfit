@@ -1,0 +1,11 @@
+node_modules
+.next
+.env
+*.db
+*.db-*
+storage
+.invite-secret
+.git
+docs
+*.md
+!README.md

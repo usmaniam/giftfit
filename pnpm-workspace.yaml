@@ -1,0 +1,9 @@
+# Lets pnpm 10+/12 run the install scripts these packages need (better-sqlite3 downloads or compiles
+# a native binary; esbuild installs its platform binary). Without this, `pnpm i` fails with ERR_PNPM_IGNORED_BUILDS.
+packages:
+  - '.'
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true
+  protobufjs: true
+  '@google/genai': true

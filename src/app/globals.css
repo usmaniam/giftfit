@@ -1,0 +1,12 @@
+@import 'tailwindcss';
+
+:root { --paper:#F7F5FB; --ink:#1F1633; --muted:#6B5B8A; --ribbon:#B3245F; --tissue:#E6DEF3; }
+@media (prefers-color-scheme: dark) {
+  :root { --paper:#17102A; --ink:#F3EEFB; --muted:#B5A6D1; --ribbon:#F06DA0; --tissue:#2A1F45; }
+}
+@theme inline {
+  --color-paper: var(--paper); --color-ink: var(--ink); --color-muted: var(--muted);
+  --color-ribbon: var(--ribbon); --color-tissue: var(--tissue);
+  --font-display: 'Iowan Old Style', Palatino, Georgia, serif;
+}
+body { background: var(--paper); color: var(--ink); }
