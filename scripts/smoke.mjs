@@ -3,7 +3,7 @@
 import { readFile } from 'node:fs/promises';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:3000';
-const sample = await readFile(new URL('../fixtures/demo/sample-person.png', import.meta.url));
+const sample = await readFile(new URL('../scripts/test-selfie.png', import.meta.url));
 let failures = 0;
 const check = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${extra ? '  ' + extra : ''}`); if (!cond) failures++; };
 const req = (path, method = 'GET', body) => fetch(BASE + path, { method, ...(body !== undefined ? { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}) });

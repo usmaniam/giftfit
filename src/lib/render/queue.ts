@@ -110,7 +110,7 @@ async function advance(r: Render) {
       if (Date.now() - r.createdAt.getTime() > START_TIMEOUT_MS) await fail(r.id, 'start_timeout');
     } else if (r.youcamTaskId === 'demo') {
       if (Date.now() - r.createdAt.getTime() >= config.demoDelayMs) {
-        await storeResult(r, await readFile(path.join(process.cwd(), 'fixtures/demo', `${r.itemId}.svg`)));
+        await storeResult(r, await readFile(path.join(process.cwd(), 'fixtures/demo', `${r.itemId}.jpg`)));
       }
     } else if (Date.now() - (lastCheck.get(r.id) ?? 0) >= POLL_MIN_MS) {
       lastCheck.set(r.id, Date.now());

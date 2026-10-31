@@ -15,7 +15,7 @@ export default function DemoButton() {
   }
   return (
     <>
-      <button className={btnGhost} onClick={go} disabled={busy}>{busy ? 'Setting up…' : 'Try the demo (illustrated sample recipient)'}</button>
+      <button className={btnGhost} onClick={go} disabled={busy}>{busy ? 'Setting up…' : 'Try the demo (sample recipient)'}</button>
       {err && <p role="alert" className="mt-2 font-semibold text-ribbon">Could not start the demo. Try again.</p>}
     </>
   );

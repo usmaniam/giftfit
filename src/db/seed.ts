@@ -7,7 +7,7 @@ const M = 'merchant-demo';
 // Generic, unbranded placeholder products. Images are SVG placeholders until
 // real licensed photos are vetted against each endpoint's spec (see ASSETS_LICENSES.md).
 const item = (id: string, name: string, category: Item['category'], price: number, colors: string[], tags: string[], metal?: 'gold' | 'silver'): Item => ({
-  id, name, category, price, currency: 'USD', brand: 'Atelier Demo', imageUrl: `/catalog/${id}.svg`,
+  id, name, category, price, currency: 'USD', brand: 'Atelier Demo', imageUrl: `/catalog/${id}.jpg`,
   imageSpecOk: false, metal: metal ?? null, colors, tags, merchantId: M,
 });
 

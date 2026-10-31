@@ -6,10 +6,10 @@ import { CATEGORIES } from '@/lib/constants';
 import { storage } from '@/lib/storage';
 import { hashToken, newId, newInviteToken } from '@/lib/tokens';
 
-/** Demo mode only: a ready session for an illustrated sample recipient, so the app can be explored without the invite step. */
+/** Demo mode only: a ready session for an AI-generated sample recipient, so the app can be explored without the invite step. */
 export async function POST() {
   if (!config.demoMode) return Response.json({ error: 'not_found' }, { status: 404 });
-  const sample = await readFile(path.join(process.cwd(), 'fixtures/demo/sample-person.png'));
+  const sample = await readFile(path.join(process.cwd(), 'fixtures/demo/sample-person.jpg'));
   const now = new Date(), expires = new Date(now.getTime() + 7 * 86_400_000);
   const id = newId(), selfie = newId(), hand = newId();
   await Promise.all([storage.put(selfie, sample), storage.put(hand, sample)]);

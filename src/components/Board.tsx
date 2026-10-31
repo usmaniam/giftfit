@@ -68,7 +68,7 @@ export default function Board({ sessionId, name, mode, status }: Props) {
 
   return (
     <section aria-label="Gift board">
-      {demo && <p className="mb-4 rounded-2xl bg-tissue p-3 text-sm">Demo mode: previews are labeled placeholders, not real YouCam renders. {name} is an illustrated sample.</p>}
+      {demo && <p className="mb-4 rounded-2xl bg-tissue p-3 text-sm">Demo mode: previews are labeled placeholders, not real YouCam renders. {name} is an AI-generated sample.</p>}
       {mode === 'surprise'
         ? <p className="text-sm text-muted">Only you see these. {name} never learns which items were previewed.</p>
         : <p className="text-sm text-muted">Co-pick: you’ll only see previews {name} approves.</p>}
