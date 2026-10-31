@@ -5,3 +5,4 @@ allowBuilds:
   esbuild: true
   protobufjs: true
   '@google/genai': true
+autoInstallPeers: false
