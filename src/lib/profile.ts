@@ -3,9 +3,10 @@ import { db, schema } from '@/db';
 
 export type ProfileRow = typeof schema.recipientProfiles.$inferSelect;
 
-export function ensureProfile(sessionId: string): ProfileRow {
-  db.insert(schema.recipientProfiles).values({ sessionId }).onConflictDoNothing().run();
-  return db.select().from(schema.recipientProfiles).where(eq(schema.recipientProfiles.sessionId, sessionId)).get()!;
+export async function ensureProfile(sessionId: string): Promise<ProfileRow> {
+  await db.insert(schema.recipientProfiles).values({ sessionId }).onConflictDoNothing();
+  const [row] = await db.select().from(schema.recipientProfiles).where(eq(schema.recipientProfiles.sessionId, sessionId));
+  return row;
 }
 
 /** What the recipient's own browser may see. noGoText is theirs; photos are exposed only as booleans. */

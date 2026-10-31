@@ -13,6 +13,12 @@ export const config = {
   llmTimeoutMs: 8000,
   agentEnabled: (process.env.AGENT_ENABLED ?? 'true') !== 'false',
   storageDir: process.env.STORAGE_DIR ?? './storage',
-  appUrl: process.env.APP_URL ?? 'http://localhost:3000',
+  // 'supabase' when explicitly chosen, or when Supabase credentials are present; otherwise local disk.
+  storageDriver: (process.env.STORAGE_DRIVER ?? (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY ? 'supabase' : 'local')) as 'local' | 'supabase',
+  supabaseUrl: process.env.SUPABASE_URL ?? '',
+  supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
+  storageBucket: process.env.SUPABASE_BUCKET ?? 'giftfit',
+  cronSecret: process.env.CRON_SECRET ?? '',
+  appUrl: process.env.APP_URL ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000'),
   maxRendersPerSession: 8,
 };

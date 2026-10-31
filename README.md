@@ -10,7 +10,7 @@ A consent-first, two-sided gifting app: the giver sends a private link, the reci
 
 ## Quickstart
 
-Requirements: **Node 20+** and **pnpm 9+** (`npm i -g pnpm`).
+Requirements: **Node 20+**, **pnpm 9+** (`npm i -g pnpm`) and **Docker** (for a local Postgres; or point `DATABASE_URL` at any Postgres, including a free Supabase project).
 
 ### Demo mode (no keys needed)
 
@@ -18,17 +18,12 @@ Requirements: **Node 20+** and **pnpm 9+** (`npm i -g pnpm`).
 git clone <repo-url> && cd giftfit
 nvm use                    # or install the Node version in .nvmrc
 cp .env.example .env
+docker compose up -d db    # local Postgres on :5432
 pnpm i && pnpm db:push && pnpm seed && pnpm dev
 # open http://localhost:3000, then tap "Try the demo"
 ```
 
 Verify it works: with the server running, `pnpm test:smoke` runs 20 end-to-end checks (setup, consent, renders, co-pick, checkout, delete-all).
-
-### Docker
-
-```bash
-docker compose up        # http://localhost:3000, data persists in a named volume
-```
 
 ### Live mode (real YouCam renders)
 
@@ -46,8 +41,8 @@ Restart. Live rendering also needs product photos vetted against each endpoint's
 ### Troubleshooting
 
 - **`ERR_PNPM_IGNORED_BUILDS`**: run `pnpm approve-builds --all`. The repo ships `pnpm-workspace.yaml` / `package.json` allowlists that normally make this unnecessary (tested on pnpm 9, 10 and 12).
-- **`better-sqlite3` binding not found**: `pnpm rebuild better-sqlite3` (needs a C++ toolchain only if no prebuilt binary matches your platform).
-- **Reset everything**: `pnpm db:reset` (also delete files in `storage/`).
+- **`ECONNREFUSED` on port 5432**: the local database isn't running. `docker compose up -d db`.
+- **Reset everything**: `pnpm db:reset` (local databases only; also delete files in `storage/`).
 
 ## How it works
 
@@ -93,8 +88,8 @@ Unverified adapters are **off by default** so the app never spends credits on gu
 flowchart LR
   G[Giver phone] -->|session, shortlist, board| API[Next.js API routes]
   R[Recipient phone] -->|consent, photos, reactions, delete| API
-  API --> DB[(SQLite via Drizzle)]
-  API --> FS[(Local disk: photos, renders)]
+  API --> DB[(Postgres via Drizzle: Supabase in production)]
+  API --> FS[(Photos, renders: local disk in dev, Supabase Storage in production)]
   API --> AG[Gift agent: hard filter, scoring, optional Gemini]
   API --> Q[Render queue: 3 concurrent, 8 per session]
   Q -->|live| YC[YouCam S2S API]
@@ -106,16 +101,16 @@ Key decisions:
 
 - **The server enforces every limit.** The agent proposes; `src/lib/boundaries.ts` decides. Category, budget, avoided colors, metal, hand-photo and live-adapter checks run on every render request, whatever the UI or agent says.
 - **Stateless queue.** Render state lives in the database; any request can advance it. Polling the list also finishes abandoned renders, so a closed tab can't hold a slot forever.
-- **SQLite + local disk** so there is nothing external to run. One instance, one volume.
+- **Postgres + object storage** so the app runs on stateless serverless hosting (Vercel). Locally that is a Docker Postgres and local disk; in production it is Supabase Postgres and a private Supabase Storage bucket. The queue claims work under a Postgres advisory lock, so concurrent invocations can't double-claim a render or exceed the concurrency cap.
 - **Honest labeling is server-side**: caveats are forced to mention preview limits (and ring size) regardless of what a model writes.
 
 ## Privacy and consent model
 
 - Rendering consent and sharing consent are separate. Without sharing consent the giver sees nothing.
-- Photos are stored only on the server's disk, expire after the recipient's chosen 1/7/30 days, and are re-encoded in the browser (EXIF/GPS stripped) and validated by magic bytes on the server. Photos are never sent to the LLM.
+- Photos are stored only in a private storage bucket (or local disk in development), reachable only through server routes, expire after the recipient's chosen 1/7/30 days, and are re-encoded in the browser (EXIF/GPS stripped) and validated by magic bytes on the server. Photos are never sent to the LLM.
 - **Gemini receives only**: the occasion, a budget range, and candidate product metadata. No photos, names, notes, or the recipient's limits (candidates are already filtered by them). Reasons that echo a limit (for example "avoids orange") are discarded before the giver sees them. Free-tier Gemini usage may be covered by different data-use terms than paid usage; check Google's current terms, which is why nothing identifying is sent.
 - The giver never sees which limits applied. In co-pick mode they see only items the recipient hearted.
-- Invite tokens are random, stored only as HMAC hashes, and expire after 14 days. Set `INVITE_TOKEN_SECRET` in production (auto-generated and persisted in Docker/Fly if unset).
+- Invite tokens are random, stored only as HMAC hashes, and expire after 14 days. Set `INVITE_TOKEN_SECRET` in production (there is no auto-generated fallback).
 - **Delete my data** removes photos, renders, picks, preferences and live analytics events immediately, and deactivates the link. Seeded demo analytics are unaffected.
 - Merchant analytics are anonymous: session id, item id and event type only.
 
@@ -134,7 +129,7 @@ Key decisions:
 - A giver can infer how many previews a recipient declined in co-pick mode (proposed minus approved minus pending).
 - A failed render shows a message but no automatic replacement is chosen.
 - Tested in headless Chromium at phone size and in Node. Not tested on iOS Safari or Android, and no formal accessibility audit (semantic HTML, focus styles, `aria-pressed` and live regions are in place).
-- Single instance: SQLite and local disk mean one machine, one volume.
+- The database tables have row-level security enabled with no policies, so Supabase's public API cannot read them; only the server's database connection can. Photos are served only through token-checked routes.
 
 ## Testing notes
 
@@ -142,14 +137,24 @@ Key decisions:
 pnpm typecheck
 pnpm test:smoke          # needs a running server in DEMO_MODE (pnpm dev)
 pnpm check:secrets       # quick credential-pattern scan before publishing
-pnpm db:reset            # wipe and re-seed the database
+pnpm db:reset            # wipe and re-seed the LOCAL database
 ```
 
 Mock servers for the optional integrations: `scripts/mock-youcam.mjs` (port 4010) and `scripts/mock-gemini.mjs` (port 4020, `MODE=ok|429once|429|badjson|badids|badschema|leak|slow`).
 
-## Deploy
+## Deploy (Vercel + Supabase)
 
-`fly.toml` is included (volume at `/data`, health check on `/api/health`). See the comments at the top of the file. Set `APP_URL` to your public URL. The deployed app runs in demo mode unless you set `DEMO_MODE=false` and `YOUCAM_API_KEY`. Docker runs as root so it can write to a fresh volume.
+1. **Supabase**: create a project. Copy the *transaction pooler* connection string (port 6543) for the app, and the *direct* (or session pooler) string for setup. Copy the project URL and the `service_role` key (Project Settings, API).
+2. **Create tables and seed** from your machine, using the direct string. `pnpm seed` also creates the private `giftfit` storage bucket when the Supabase variables are set:
+
+   ```bash
+   DATABASE_URL="<direct string>" SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... pnpm db:push
+   DATABASE_URL="<direct string>" SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... pnpm seed
+   ```
+3. **Vercel**: import the repo. Set these environment variables: `DATABASE_URL` (pooler string), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `INVITE_TOKEN_SECRET` and `CRON_SECRET` (both `openssl rand -hex 24`), `DEMO_MODE=true`, and optionally `APP_URL`, `GEMINI_API_KEY`, `GIFT_AGENT_MODEL`, `YOUCAM_API_KEY`. Pick a Vercel function region close to your Supabase region.
+4. **Verify**: `/api/health` should return `ok: true`, `catalogItems: 12` and `storage: "supabase"`.
+
+`vercel.json` sets a 60 s function limit and a daily cron (`/api/cron/purge`) that deletes expired photos. Vercel caps request bodies at 4.5 MB; the browser downsizes photos before upload and the server rejects anything over 4 MB.
 
 ## License and credits
 

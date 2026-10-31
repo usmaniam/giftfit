@@ -13,16 +13,16 @@ export async function POST() {
   const now = new Date(), expires = new Date(now.getTime() + 7 * 86_400_000);
   const id = newId(), selfie = newId(), hand = newId();
   await Promise.all([storage.put(selfie, sample), storage.put(hand, sample)]);
-  db.insert(schema.assets).values([
+  await db.insert(schema.assets).values([
     { id: selfie, kind: 'selfie', path: selfie, expiresAt: expires }, { id: hand, kind: 'hand', path: hand, expiresAt: expires },
-  ]).run();
-  db.insert(schema.giftSessions).values({
+  ]);
+  await db.insert(schema.giftSessions).values({
     id, giverName: 'You', recipientFirstName: 'Maya', occasion: 'birthday', budgetMin: 25, budgetMax: 150, mode: 'surprise',
     status: 'ready', inviteTokenHash: hashToken(newInviteToken()), expiresAt: new Date(now.getTime() + 14 * 86_400_000), createdAt: now,
-  }).run();
-  db.insert(schema.recipientProfiles).values({
+  });
+  await db.insert(schema.recipientProfiles).values({
     sessionId: id, consentRender: true, consentShareRenders: true, deleteAfterDays: 7, selfieAssetId: selfie, handAssetId: hand,
     allowedCategories: [...CATEGORIES], metalPref: 'any', avoidColors: [],
-  }).run();
+  });
   return Response.json({ id }, { status: 201 });
 }

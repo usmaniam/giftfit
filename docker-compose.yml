@@ -1,13 +1,11 @@
+# Local Postgres for development: `docker compose up -d db`, then use DATABASE_URL from .env.example.
 services:
-  giftfit:
-    build: .
-    ports: ["3000:3000"]
+  db:
+    image: postgres:16
     environment:
-      DEMO_MODE: ${DEMO_MODE:-true}
-      APP_URL: ${APP_URL:-http://localhost:3000}
-      YOUCAM_API_KEY: ${YOUCAM_API_KEY:-}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GIFT_AGENT_MODEL: ${GIFT_AGENT_MODEL:-}
-    volumes: ["giftfit-data:/data"]
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: giftfit
+    ports: ["5432:5432"]
+    volumes: ["giftfit-pg:/var/lib/postgresql/data"]
 volumes:
-  giftfit-data:
+  giftfit-pg:

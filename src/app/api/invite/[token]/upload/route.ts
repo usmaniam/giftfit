@@ -6,14 +6,15 @@ import { parseImage } from '@/lib/images';
 import { storage } from '@/lib/storage';
 import { newId } from '@/lib/tokens';
 
-const MAX_BYTES = 8 * 1024 * 1024;
+// Vercel rejects request bodies over 4.5 MB before they reach this route, so stay under it. The client downsizes photos first.
+const MAX_BYTES = 4 * 1024 * 1024;
 const MIN_SIDE = 512; // YouCam scarf/bag minimum
 type Ctx = { params: Promise<{ token: string }> };
 
 export async function POST(req: Request, { params }: Ctx) {
-  const s = getSessionByToken((await params).token);
+  const s = await getSessionByToken((await params).token);
   if (!s) return Response.json({ error: 'not_found' }, { status: 404 });
-  const profile = ensureProfile(s.id);
+  const profile = await ensureProfile(s.id);
   if (!profile.consentRender) return Response.json({ error: 'consent_required' }, { status: 403 });
 
   const form = await req.formData().catch(() => null);
@@ -32,10 +33,10 @@ export async function POST(req: Request, { params }: Ctx) {
   const oldId = profile[col];
   const id = newId();
   await storage.put(id, img.bytes);
-  db.insert(schema.assets).values({
+  await db.insert(schema.assets).values({
     id, kind, path: id, expiresAt: new Date(Date.now() + profile.deleteAfterDays * 86_400_000),
-  }).run();
-  db.update(schema.recipientProfiles).set({ [col]: id }).where(eq(schema.recipientProfiles.sessionId, s.id)).run();
-  if (oldId) { await storage.remove(oldId); db.delete(schema.assets).where(eq(schema.assets.id, oldId)).run(); }
+  });
+  await db.update(schema.recipientProfiles).set({ [col]: id }).where(eq(schema.recipientProfiles.sessionId, s.id));
+  if (oldId) { await storage.remove(oldId); await db.delete(schema.assets).where(eq(schema.assets.id, oldId)); }
   return Response.json({ ok: true, kind, width: img.width, height: img.height }, { status: 201 });
 }

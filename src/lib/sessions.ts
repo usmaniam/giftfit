@@ -4,13 +4,15 @@ import { hashToken } from './tokens';
 
 export type SessionRow = typeof schema.giftSessions.$inferSelect;
 
-export const getSession = (id: string): SessionRow | undefined =>
-  db.select().from(schema.giftSessions).where(eq(schema.giftSessions.id, id)).get();
+export async function getSession(id: string): Promise<SessionRow | undefined> {
+  const [row] = await db.select().from(schema.giftSessions).where(eq(schema.giftSessions.id, id));
+  return row;
+}
 
 /** Returns the session for a valid, unexpired, undeleted invite token; otherwise undefined. */
-export function getSessionByToken(token: string): SessionRow | undefined {
-  const row = db.select().from(schema.giftSessions)
-    .where(eq(schema.giftSessions.inviteTokenHash, hashToken(token))).get();
+export async function getSessionByToken(token: string): Promise<SessionRow | undefined> {
+  const [row] = await db.select().from(schema.giftSessions)
+    .where(eq(schema.giftSessions.inviteTokenHash, hashToken(token)));
   if (!row || row.status === 'deleted' || row.expiresAt.getTime() < Date.now()) return undefined;
   return row;
 }

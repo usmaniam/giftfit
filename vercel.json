@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm build",
+  "functions": {
+    "src/app/api/**/*.ts": { "maxDuration": 60 }
+  },
+  "crons": [
+    { "path": "/api/cron/purge", "schedule": "0 3 * * *" }
+  ]
+}

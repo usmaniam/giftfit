@@ -16,8 +16,8 @@ export async function requestRenders(s: Session, p: Profile, itemIds: string[]):
   if (!p.consentRender || !p.selfieAssetId || s.status === 'created' || s.status === 'invited') return { error: 'recipient_not_ready', httpStatus: 409 };
   if (!p.consentShareRenders) return { error: 'share_consent_required', httpStatus: 403 };
 
-  const existing = db.select().from(schema.renders).where(and(eq(schema.renders.sessionId, s.id), ne(schema.renders.status, 'error'))).all();
-  const items = db.select().from(schema.catalogItems).where(inArray(schema.catalogItems.id, itemIds)).all();
+  const existing = await db.select().from(schema.renders).where(and(eq(schema.renders.sessionId, s.id), ne(schema.renders.status, 'error')));
+  const items = await db.select().from(schema.catalogItems).where(inArray(schema.catalogItems.id, itemIds));
   const accepted: { id: string; itemId: string }[] = [];
   const rejected: { itemId: string; reason: string }[] = [];
 
@@ -28,7 +28,7 @@ export async function requestRenders(s: Session, p: Profile, itemIds: string[]):
       : existing.length + accepted.length >= config.maxRendersPerSession ? 'render_budget_exhausted'
       : blockedReason(item, p, s);
     if (reason) { rejected.push({ itemId, reason }); continue; }
-    accepted.push({ id: enqueueRender(s.id, itemId, ADAPTERS[item!.category].endpoint ?? 'demo'), itemId });
+    accepted.push({ id: await enqueueRender(s.id, itemId, ADAPTERS[item!.category].endpoint ?? 'demo'), itemId });
   }
   await pump();
   return { accepted, rejected };

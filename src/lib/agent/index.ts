@@ -31,10 +31,10 @@ function honest(caveat: string, item: Item): string {
 }
 
 export async function runAgent(s: Session, p: Profile, opts: { count: number; refresh: boolean }) {
-  const existing = db.select().from(schema.picks).where(eq(schema.picks.sessionId, s.id)).all();
+  const existing = await db.select().from(schema.picks).where(eq(schema.picks.sessionId, s.id));
   if (existing.length && !opts.refresh) return { status: 'cached' as AgentStatus, picks: existing };
 
-  const catalog = db.select().from(schema.catalogItems).all();
+  const catalog = await db.select().from(schema.catalogItems);
   const ranked = rank(catalog, p, s);
   if (!ranked.length) return { status: 'no_candidates' as AgentStatus, picks: [] };
 
@@ -56,7 +56,7 @@ export async function runAgent(s: Session, p: Profile, opts: { count: number; re
   const count = Math.min(opts.count, config.maxRendersPerSession);
   const chosen = selectDiverse(order.map((c) => ({ ...c, category: c.item.category })), count);
 
-  if (existing.length) db.delete(schema.picks).where(eq(schema.picks.sessionId, s.id)).run();
+  if (existing.length) await db.delete(schema.picks).where(eq(schema.picks.sessionId, s.id));
   const rows = chosen.map((c, i) => {
     const t = llmText.get(c.item.id);
     const base = t ?? rulesText(c);
@@ -65,6 +65,6 @@ export async function runAgent(s: Session, p: Profile, opts: { count: number; re
       caveatText: honest(base.caveat, c.item), source: (t ? 'llm' : 'rules') as 'llm' | 'rules', score: c.score, signals: c.signals,
     };
   });
-  db.insert(schema.picks).values(rows).run();
+  await db.insert(schema.picks).values(rows);
   return { status, picks: rows };
 }

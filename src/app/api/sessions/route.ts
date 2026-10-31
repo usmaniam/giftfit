@@ -21,10 +21,10 @@ export async function POST(req: Request) {
   const id = newId();
   const token = newInviteToken();
   const now = new Date();
-  db.insert(schema.giftSessions).values({
+  await db.insert(schema.giftSessions).values({
     id, ...parsed.data, status: 'invited', inviteTokenHash: hashToken(token),
     expiresAt: new Date(now.getTime() + INVITE_DAYS * 86_400_000), createdAt: now,
-  }).run();
+  });
   // The raw token is returned once and never stored; only its hash is persisted.
   return Response.json({ id, inviteUrl: `${config.appUrl}/invite/${token}` }, { status: 201 });
 }

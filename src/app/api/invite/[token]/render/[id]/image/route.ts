@@ -6,8 +6,8 @@ import { serveRender } from '@/lib/render/serve';
 // The recipient may view renders of themselves, but only in co-pick mode and only within their own session.
 export async function GET(_: Request, { params }: { params: Promise<{ token: string; id: string }> }) {
   const { token, id } = await params;
-  const s = getSessionByToken(token);
+  const s = await getSessionByToken(token);
   if (!s || s.mode !== 'copick') return new Response(null, { status: 404 });
-  const r = db.select().from(schema.renders).where(and(eq(schema.renders.id, id), eq(schema.renders.sessionId, s.id), eq(schema.renders.status, 'success'))).get();
+  const [r] = await db.select().from(schema.renders).where(and(eq(schema.renders.id, id), eq(schema.renders.sessionId, s.id), eq(schema.renders.status, 'success')));
   return r?.resultAssetId ? serveRender(r.resultAssetId) : new Response(null, { status: 404 });
 }

@@ -22,10 +22,10 @@ const Patch = z.object({
 
 export async function GET(_: Request, { params }: Ctx) {
   await purgeExpired();
-  const s = getSessionByToken((await params).token);
+  const s = await getSessionByToken((await params).token);
   if (!s) return Response.json({ error: 'not_found' }, { status: 404 });
-  const profile = ensureProfile(s.id);
-  const photo = profile.selfieAssetId ? db.select().from(schema.assets).where(eq(schema.assets.id, profile.selfieAssetId)).get() : undefined;
+  const profile = await ensureProfile(s.id);
+  const [photo] = profile.selfieAssetId ? await db.select().from(schema.assets).where(eq(schema.assets.id, profile.selfieAssetId)) : [];
   return Response.json({
     session: { giverName: s.giverName, recipientFirstName: s.recipientFirstName, occasion: s.occasion, mode: s.mode, status: s.status },
     profile: { ...recipientView(profile), photosDeleteAt: photo?.expiresAt?.toISOString() ?? null },
@@ -33,19 +33,19 @@ export async function GET(_: Request, { params }: Ctx) {
 }
 
 export async function PUT(req: Request, { params }: Ctx) {
-  const s = getSessionByToken((await params).token);
+  const s = await getSessionByToken((await params).token);
   if (!s) return Response.json({ error: 'not_found' }, { status: 404 });
   const parsed = Patch.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: 'invalid_input' }, { status: 400 });
-  const before = ensureProfile(s.id);
+  const before = await ensureProfile(s.id);
   const { noGoText, ...rest } = parsed.data;
-  db.update(schema.recipientProfiles)
+  await db.update(schema.recipientProfiles)
     .set({ ...rest, ...(noGoText !== undefined ? { noGoText: noGoText || null } : {}) })
-    .where(eq(schema.recipientProfiles.sessionId, s.id)).run();
+    .where(eq(schema.recipientProfiles.sessionId, s.id));
   // Withdrawing render consent immediately deletes the photos and pulls the session back from "ready".
   if (parsed.data.consentRender === false && before.consentRender) {
     await purgePhotos(s.id);
-    db.update(schema.giftSessions).set({ status: 'invited' }).where(eq(schema.giftSessions.id, s.id)).run();
+    await db.update(schema.giftSessions).set({ status: 'invited' }).where(eq(schema.giftSessions.id, s.id));
   }
-  return Response.json({ profile: recipientView(ensureProfile(s.id)) });
+  return Response.json({ profile: recipientView(await ensureProfile(s.id)) });
 }

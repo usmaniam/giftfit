@@ -30,9 +30,9 @@ function Kpi({ label, value, sub }: { label: string; value: string | number; sub
   return (<div className="rounded-2xl border-[1.5px] border-tissue p-4"><div className="text-sm text-muted">{label}</div><div className="font-display text-3xl">{value}</div>{sub && <div className="text-xs text-muted">{sub}</div>}</div>);
 }
 
-export default function Merchant() {
-  const cat = new Map(db.select().from(schema.catalogItems).all().map((i) => [i.id, i.category]));
-  const all = db.select().from(schema.merchantEvents).all();
+export default async function Merchant() {
+  const cat = new Map((await db.select().from(schema.catalogItems)).map((i) => [i.id, i.category]));
+  const all = await db.select().from(schema.merchantEvents);
   const demo = summarize(all.filter((e) => e.seeded), cat);
   const live = summarize(all.filter((e) => !e.seeded), cat);
   const latest = new Map<string, Ev>();

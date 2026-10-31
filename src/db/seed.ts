@@ -1,5 +1,6 @@
-import { db, schema } from './index';
-import { sql } from 'drizzle-orm';
+import { db, schema, client } from './index';
+import { eq } from 'drizzle-orm';
+import { ensureBucket } from '../lib/storage';
 
 type Item = typeof schema.catalogItems.$inferInsert;
 const M = 'merchant-demo';
@@ -25,21 +26,21 @@ export const CATALOG: Item[] = [
   item('look-soft-glam', 'Soft glam makeup look', 'look', 0, ['pink'], ['birthday', 'holiday']),
 ];
 
-// Idempotent: upsert by id, safe to run on every boot (scripts/start.sh).
-for (const row of CATALOG) {
-  db.insert(schema.catalogItems).values(row)
-    .onConflictDoUpdate({ target: schema.catalogItems.id, set: { ...row, id: sql`id` } })
-    .run();
+// Idempotent: upsert by id, safe to run on every boot (re-run after deploys).
+async function seedCatalog() {
+  for (const row of CATALOG) {
+    const { id: _id, ...fields } = row;
+    await db.insert(schema.catalogItems).values(row).onConflictDoUpdate({ target: schema.catalogItems.id, set: fields });
+  }
+  console.log(`Seeded ${CATALOG.length} catalog items.`);
 }
-console.log(`Seeded ${CATALOG.length} catalog items.`);
 
 // ---- Seeded merchant demo data (clearly labeled in the UI; replaced on every run) ----
-import { eq } from 'drizzle-orm';
 function rng(seed: number) {
   return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 const HEART_RATE: Record<string, number> = { scarf: 0.62, earrings: 0.55, necklace: 0.5, top: 0.42, look: 0.45, bag: 0.38, hat: 0.35, ring: 0.3, watch: 0.25 };
-{
+async function seedDemoEvents() {
   const r = rng(2026), now = Date.now();
   const acc: Record<string, number> = {}; // per-category error diffusion keeps realized approval close to each target rate
   type Ev = typeof schema.merchantEvents.$inferInsert;
@@ -59,7 +60,15 @@ const HEART_RATE: Record<string, number> = { scarf: 0.62, earrings: 0.55, neckla
     const buys = copick ? hearted.length > 0 && r() < 0.55 : r() < 0.3;
     if (buys) events.push(ev(sid, copick ? hearted[0] : pool[0].id, 'purchase', t0 + 7_200_000));
   }
-  db.delete(schema.merchantEvents).where(eq(schema.merchantEvents.seeded, true)).run();
-  for (let i = 0; i < events.length; i += 100) db.insert(schema.merchantEvents).values(events.slice(i, i + 100)).run();
+  await db.delete(schema.merchantEvents).where(eq(schema.merchantEvents.seeded, true));
+  for (let i = 0; i < events.length; i += 100) await db.insert(schema.merchantEvents).values(events.slice(i, i + 100));
   console.log(`Seeded ${events.length} demo merchant events.`);
 }
+
+async function main() {
+  await ensureBucket();   // no-op unless the Supabase storage driver is configured
+  await seedCatalog();
+  await seedDemoEvents();
+  await client.end();
+}
+main().catch(async (e) => { console.error(e); await client.end({ timeout: 1 }); process.exit(1); });
